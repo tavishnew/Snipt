@@ -1,0 +1,91 @@
+/* DevDrop — light syntax theme ("Ink & Ochre")
+ * Tuned for the warm bone paper background. All tokens meet 4.5:1 on --card.
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #35302a;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  tab-size: 2;
+  hyphens: none;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #8a8175;
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: #7d7466;
+}
+
+.token.namespace {
+  opacity: 0.7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #9a4f16;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #2f6b46;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #1f6470;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #9d3a2a;
+}
+
+.token.function,
+.token.class-name {
+  color: #3b5c9c;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #7a5a1e;
+}
+
+.token.important,
+.token.bold {
+  font-weight: 600;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}

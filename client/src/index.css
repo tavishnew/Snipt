@@ -1,0 +1,249 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * DevDrop — "Ink & Ochre" design system
+ * Light, paper-like editorial surface. One accent (ochre/rust), one support
+ * hue (ink slate). No glass, no glow, no gradients.
+ *
+ * Rules:
+ * 1. Never hardcode colors in components. Use tokens / brand-* / ink-* scales.
+ * 2. Elevation is expressed with hairline borders + one flat shadow, never blur.
+ * 3. Radius is small and consistent (--radius = 6px).
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Brand ramp — ochre / burnt rust */
+  --color-brand-50: oklch(0.972 0.014 62);
+  --color-brand-100: oklch(0.943 0.030 62);
+  --color-brand-200: oklch(0.892 0.058 58);
+  --color-brand-300: oklch(0.822 0.090 54);
+  --color-brand-400: oklch(0.716 0.128 48);
+  --color-brand-500: oklch(0.628 0.148 44);
+  --color-brand-600: oklch(0.548 0.152 41);
+  --color-brand-700: oklch(0.462 0.132 38);
+  --color-brand-800: oklch(0.376 0.100 36);
+  --color-brand-900: oklch(0.302 0.072 36);
+  --color-brand-950: oklch(0.216 0.048 36);
+
+  /* Ink ramp — warm neutral, used for text and rules */
+  --color-ink-50: oklch(0.982 0.005 90);
+  --color-ink-100: oklch(0.958 0.008 90);
+  --color-ink-200: oklch(0.912 0.010 88);
+  --color-ink-300: oklch(0.848 0.012 86);
+  --color-ink-400: oklch(0.702 0.014 82);
+  --color-ink-500: oklch(0.578 0.016 78);
+  --color-ink-600: oklch(0.470 0.017 72);
+  --color-ink-700: oklch(0.382 0.018 66);
+  --color-ink-800: oklch(0.296 0.017 60);
+  --color-ink-900: oklch(0.226 0.016 56);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+:root {
+  --radius: 0.375rem;
+
+  --background: oklch(0.971 0.009 92);   /* warm bone paper */
+  --foreground: oklch(0.226 0.016 56);   /* ink */
+  --card: oklch(0.995 0.004 92);
+  --card-foreground: oklch(0.226 0.016 56);
+  --popover: oklch(0.995 0.004 92);
+  --popover-foreground: oklch(0.226 0.016 56);
+
+  --primary: oklch(0.548 0.152 41);      /* burnt ochre */
+  --primary-foreground: oklch(0.985 0.006 90);
+  --secondary: oklch(0.944 0.010 90);
+  --secondary-foreground: oklch(0.296 0.017 60);
+  --muted: oklch(0.940 0.010 90);
+  --muted-foreground: oklch(0.470 0.017 72);
+  --accent: oklch(0.943 0.030 62);
+  --accent-foreground: oklch(0.376 0.100 36);
+
+  --destructive: oklch(0.512 0.176 27);
+  --destructive-foreground: oklch(0.985 0.006 90);
+  --success: oklch(0.470 0.086 152);
+  --success-foreground: oklch(0.985 0.006 90);
+
+  --border: oklch(0.884 0.012 88);
+  --input: oklch(0.884 0.012 88);
+  --ring: oklch(0.548 0.152 41);
+
+  --chart-1: oklch(0.548 0.152 41);
+  --chart-2: oklch(0.470 0.086 152);
+  --chart-3: oklch(0.470 0.017 72);
+  --chart-4: oklch(0.716 0.128 48);
+  --chart-5: oklch(0.382 0.018 66);
+
+  --sidebar: oklch(0.985 0.006 90);
+  --sidebar-foreground: oklch(0.296 0.017 60);
+  --sidebar-primary: oklch(0.548 0.152 41);
+  --sidebar-primary-foreground: oklch(0.985 0.006 90);
+  --sidebar-accent: oklch(0.940 0.010 90);
+  --sidebar-accent-foreground: oklch(0.296 0.017 60);
+  --sidebar-border: oklch(0.884 0.012 88);
+  --sidebar-ring: oklch(0.548 0.152 41);
+
+  --shadow-flat: 0 1px 0 0 oklch(0.226 0.016 56 / 0.04);
+  --shadow-raise: 0 1px 2px 0 oklch(0.226 0.016 56 / 0.06);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      max-width: 1180px;
+    }
+  }
+
+  /* Primary surface: replaces the old .glass panel. Flat paper + hairline. */
+  .surface {
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-flat);
+  }
+
+  .surface-hover:hover {
+    border-color: var(--color-brand-300);
+    box-shadow: var(--shadow-raise);
+  }
+
+  /* Subtle engineering-paper grid, replaces the old mesh gradient */
+  .paper-grid {
+    background-image:
+      linear-gradient(to right, oklch(0.226 0.016 56 / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.226 0.016 56 / 0.035) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 20%, transparent 75%);
+  }
+
+  .code-block {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    tab-size: 2;
+  }
+
+  ::selection {
+    background: var(--color-brand-200);
+    color: var(--color-brand-900);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink-300);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-400);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

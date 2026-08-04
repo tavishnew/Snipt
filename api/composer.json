@@ -1,0 +1,13 @@
+{
+  "name": "devdrop/api",
+  "description": "DevDrop ephemeral code sharing backend",
+  "type": "project",
+  "require": {
+    "php": ">=8.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    }
+  }
+}
