@@ -72,10 +72,10 @@ export default function About() {
             <Code2 className="w-7 h-7 text-brand-700" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-            About <span className="text-brand-700">DevDrop</span>
+            About <span className="text-brand-700">Snipt</span>
           </h1>
           <p className="text-muted-foreground max-w-lg mx-auto leading-relaxed">
-            DevDrop is a secure, ephemeral code-sharing tool built for developers
+            Snipt is a secure, ephemeral code-sharing tool built for developers
             who value speed and privacy. No accounts, no tracking, just code.
           </p>
         </motion.div>
@@ -189,12 +189,16 @@ export default function About() {
               {[
                 "React 19",
                 "TypeScript",
-                "Tailwind CSS",
                 "Framer Motion",
-                "Lenis Scroll",
                 "Prism.js",
-                "shadcn/ui",
+                "Radix UI",
                 "Lucide Icons",
+                "Wouter",
+                "Zod",
+                "React Hook Form",
+                "Sonner",
+                "JSZip",
+                "PHP 8.2+",
               ].map((tech) => (
                 <div
                   key={tech}

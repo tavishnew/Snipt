@@ -1,8 +1,6 @@
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import CreateSnippet from "./pages/CreateSnippet";
@@ -32,23 +30,19 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster
-            theme="light"
-            position="bottom-center"
-            toastOptions={{
-              style: {
-                background: 'oklch(0.995 0.004 92)',
-                border: '1px solid oklch(0.884 0.012 88)',
-                color: 'oklch(0.226 0.016 56)',
-                borderRadius: '0.375rem',
-              }
-            }}
-          />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
+      <Toaster
+        theme="light"
+        position="bottom-center"
+        toastOptions={{
+          style: {
+            background: 'oklch(0.995 0.004 92)',
+            border: '1px solid oklch(0.884 0.012 88)',
+            color: 'oklch(0.226 0.016 56)',
+            borderRadius: '0.375rem',
+          }
+        }}
+      />
+      <Router />
     </ErrorBoundary>
   );
 }

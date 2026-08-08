@@ -1,7 +1,12 @@
-import { cn } from "@/lib/utils";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 import * as React from "react";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // Context to track composition state across dialog children
 const DialogCompositionContext = React.createContext<{
@@ -206,4 +211,3 @@ export {
   DialogTitle,
   DialogTrigger
 };
-

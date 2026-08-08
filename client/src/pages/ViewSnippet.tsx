@@ -139,6 +139,13 @@ export default function ViewSnippet() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [zipLoading, setZipLoading] = useState(false);
 
+  // Check if we need to redirect to lock page
+  useEffect(() => {
+    if (snippet && (snippet as any).protected) {
+      window.location.href = `/s/${snippetId}/lock`;
+    }
+  }, [snippet, snippetId]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -158,7 +165,11 @@ export default function ViewSnippet() {
 
       // 2. Fetch API
       try {
-        const res = await fetch(`/api/snippets/${snippetId}`);
+        const token = sessionStorage.getItem(`snippet_token_${snippetId}`);
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`/api/snippets/${snippetId}`, { headers });
         if (!res.ok) throw new Error("not_found");
         const data = (await res.json()) as Snippet;
         if (!cancelled) {
@@ -205,7 +216,11 @@ export default function ViewSnippet() {
   const loadZipContents = async (id: string) => {
     setZipLoading(true);
     try {
-      const res = await fetch(`/api/snippets/${id}/download`);
+      const token = sessionStorage.getItem(`snippet_token_${id}`);
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/snippets/${id}/download`, { headers });
       if (!res.ok) return;
       const buffer = await res.arrayBuffer();
       const zip = await JSZip.loadAsync(buffer);

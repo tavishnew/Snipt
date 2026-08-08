@@ -1,2 +1,0 @@
-- [Codebase Overview](codebase-overview.md) — Full map of Snipt: React/Express/PNPM ephemeral code-sharing app, every source file's role, routing, design system, current mock-only state
-- [PHP Backend](php-backend.md) — Neon PostgreSQL backend (api/), API contract, env setup, Neon connection string

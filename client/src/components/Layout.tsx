@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Code2, Menu, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import Lenis from "lenis";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -47,7 +46,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navLinks = [
     { href: "/", label: "Home" },
-    { href: "/create", label: "Create" },
     { href: "/about", label: "About" },
   ];
 
@@ -76,7 +74,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {"</>"}
               </span>
               <span className="text-lg font-bold tracking-tight">
-                Dev<span className="text-brand-700">Drop</span>
+                Sn<span className="text-brand-700">ipt</span>
               </span>
             </div>
           </Link>
@@ -96,15 +94,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </span>
               </Link>
             ))}
-            <div className="w-px h-6 bg-muted mx-2" />
-            <Link href="/create">
-              <Button
-                size="sm"
-                className="bg-brand-600 hover:bg-brand-700 text-primary-foreground font-medium transition-all duration-200"
-              >
-                Create Snippet
-              </Button>
-            </Link>
           </div>
 
           {/* Mobile menu toggle */}
@@ -140,14 +129,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     </span>
                   </Link>
                 ))}
-                <Link href="/create">
-                  <Button
-                    size="sm"
-                    className="mt-2 w-full bg-brand-600 hover:bg-brand-700 text-primary-foreground font-medium"
-                  >
-                    Create Snippet
-                  </Button>
-                </Link>
               </div>
             </motion.div>
           )}
@@ -170,7 +151,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {"</>"}
             </span>
             <span className="text-sm text-muted-foreground">
-              Dev<span className="text-brand-600">Drop</span>
+              Sn<span className="text-brand-600">ipt</span>
             </span>
           </div>
           <p className="text-xs text-muted-foreground">

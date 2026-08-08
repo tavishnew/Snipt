@@ -78,9 +78,9 @@ class FileDbFallback
             return [['count' => 0]];
         }
 
-        if (str_contains($sql, 'WHERE public_id =')) {
-            $publicId = $params[0] ?? '';
-            $results = array_filter($this->data['snippets'], fn($s) => ($s['public_id'] ?? '') === $publicId);
+        if (stripos($sql, 'WHERE public_id') !== false) {
+            $publicId = strtolower($params[0] ?? '');
+            $results = array_filter($this->data['snippets'], fn($s) => strtolower($s['public_id'] ?? '') === $publicId);
             if (str_contains($sql, 'COUNT(*)')) {
                 return [['count' => count($results)]];
             }

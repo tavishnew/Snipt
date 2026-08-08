@@ -42,7 +42,14 @@ class Snippet
 
     public static function findByPublicId(string $publicId): ?array
     {
-        $stmt = db()->prepare('SELECT * FROM snippets WHERE public_id = ?');
+        $pdo = db();
+        $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+
+        if ($driver === 'pgsql') {
+            $stmt = $pdo->prepare('SELECT * FROM snippets WHERE public_id ILIKE ?');
+        } else {
+            $stmt = $pdo->prepare('SELECT * FROM snippets WHERE public_id = ?');
+        }
         $stmt->execute([$publicId]);
         $row = $stmt->fetch();
         return $row !== false ? $row : null;

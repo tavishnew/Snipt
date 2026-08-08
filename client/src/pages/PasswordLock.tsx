@@ -3,7 +3,8 @@
  * Password entry screen for protected snippets
  * Ochre accent, surface card, rate limit awareness
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import {
   Lock,
@@ -17,6 +18,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function PasswordLock() {
+  const [, setLocation] = useLocation();
+  const location = window.location.pathname;
+  const snippetId = location.match(/\/s\/([^/]+)\/lock/)?.[1];
+
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,20 +41,40 @@ export default function PasswordLock() {
     setLoading(true);
     setError(null);
 
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 800));
+    try {
+      const res = await fetch(`/api/snippets/${snippetId}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
 
-    // For demo: "secret" is the correct password
-    if (password === "secret") {
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setError(data.error?.message || "Invalid password");
+          toast.error("Invalid password");
+        } else if (res.status === 429) {
+          setError("Too many attempts. Try again later.");
+          toast.error("Rate limited");
+        } else {
+          setError(data.error?.message || "Failed to unlock");
+          toast.error("Failed to unlock");
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Store token in sessionStorage and redirect
+      sessionStorage.setItem(`snippet_token_${snippetId}`, data.token);
       toast.success("Unlocked! Redirecting...");
-      // In production: navigate to /s/:id with auth token
-    } else {
-      setError("Invalid password. Please try again.");
-      toast.error("Invalid password");
+      window.location.href = `/s/${snippetId}`;
+    } catch {
+      setError("Network error. Please try again.");
+      toast.error("Network error");
+      setLoading(false);
     }
-
-    setLoading(false);
-  }, [password]);
+  }, [password, snippetId]);
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] py-12 flex items-center">

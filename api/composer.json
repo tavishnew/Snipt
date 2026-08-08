@@ -1,6 +1,6 @@
 {
-  "name": "devdrop/api",
-  "description": "DevDrop ephemeral code sharing backend",
+  "name": "snipt/api",
+  "description": "Snipt ephemeral code sharing backend",
   "type": "project",
   "require": {
     "php": ">=8.2"

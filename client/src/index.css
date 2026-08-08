@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * DevDrop — "Ink & Ochre" design system
+ * Snipt — "Ink & Ochre" design system
  * Light, paper-like editorial surface. One accent (ochre/rust), one support
  * hue (ink slate). No glass, no glow, no gradients.
  *
@@ -221,21 +221,26 @@
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 0;
+    height: 0;
   }
 
   ::-webkit-scrollbar-track {
-    background: transparent;
+    display: none;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-ink-300);
-    border-radius: 4px;
+    display: none;
   }
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-ink-400);
+  /* Firefox */
+  html {
+    scrollbar-width: none;
+  }
+
+  /* IE/Edge */
+  body {
+    -ms-overflow-style: none;
   }
 }
 

@@ -33,7 +33,7 @@ const container = {
 
 const codeLines = [
   { text: "const", color: "#9d3a2a" },
-  { text: " devdrop", color: "#3b5c9c" },
+  { text: " snipt", color: "#3b5c9c" },
   { text: " = {", color: "#4a443c" },
   { text: "\n  share:", color: "#4a443c" },
   { text: " (code", color: "#9a4f16" },
@@ -43,7 +43,7 @@ const codeLines = [
   { text: " = generateId()", color: "#4a443c" },
   { text: ";", color: "#4a443c" },
   { text: "\n    return", color: "#9d3a2a" },
-  { text: " `https://devdrop/s/${id}`", color: "#2f6b46" },
+  { text: " `https://snipt/s/${id}`", color: "#2f6b46" },
   { text: ";", color: "#4a443c" },
   { text: "\n  };", color: "#4a443c" },
   { text: "\n}", color: "#4a443c" },
@@ -247,10 +247,10 @@ export default function Home() {
             className="text-center mb-16"
           >
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-              What DevDrop does
+              What Snipt does
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              DevDrop is built for one purpose: sharing code as fast as possible.
+              Snipt is built for one purpose: sharing code as fast as possible.
             </p>
           </motion.div>
 
