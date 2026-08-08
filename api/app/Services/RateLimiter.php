@@ -15,28 +15,20 @@ class RateLimiter
     ) {}
 
     private const ALLOWED_INTERVALS = [
-        '1 MINUTE',
-        '10 MINUTES',
+        '1 MINUTE' => "INTERVAL '1 minute'",
+        '10 MINUTES' => "INTERVAL '10 minutes'",
     ];
 
     private function validateInterval(string $interval): string
     {
-        if (!in_array($interval, self::ALLOWED_INTERVALS, true)) {
-            return '1 MINUTE';
-        }
-        return $interval;
+        $upper = strtoupper($interval);
+        return array_key_exists($upper, self::ALLOWED_INTERVALS) ? $upper : '1 MINUTE';
     }
 
-    private function buildWhereClause(\PDO $pdo, string $interval): string
+    private function getIntervalLiteral(string $interval): string
     {
-        $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
-        $safeInterval = $this->validateInterval($interval);
-
-        if ($driver === 'sqlite') {
-            return "AND created_at > datetime('now', '-' || ?)";
-        }
-
-        return "AND created_at > NOW() - INTERVAL " . $safeInterval;
+        $safe = $this->validateInterval($interval);
+        return self::ALLOWED_INTERVALS[$safe];
     }
 
     private function getIntervalParam(string $interval): string
@@ -67,8 +59,8 @@ class RateLimiter
                 $stmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? AND created_at > datetime(\'now\', ?)');
                 $stmt->execute([$this->ipHash, $this->route, $intervalParam]);
             } else {
-                $where = $this->buildWhereClause($pdo, $interval);
-                $stmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? ' . $where);
+                $intervalLiteral = $this->getIntervalLiteral($interval);
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? AND created_at > NOW() - {$intervalLiteral}");
                 $stmt->execute([$this->ipHash, $this->route]);
             }
 
@@ -96,8 +88,8 @@ class RateLimiter
                 $stmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? AND created_at > datetime(\'now\', ?)');
                 $stmt->execute([$this->ipHash, $this->route, $intervalParam]);
             } else {
-                $where = $this->buildWhereClause($pdo, $interval);
-                $stmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? ' . $where);
+                $intervalLiteral = $this->getIntervalLiteral($interval);
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? AND created_at > NOW() - {$intervalLiteral}");
                 $stmt->execute([$this->ipHash, $this->route]);
             }
 

@@ -172,14 +172,24 @@ function db(): PDO|FileDbFallback
         return $pdo;
     }
 
-    $host = $_ENV['DB_HOST'] ?? '127.0.0.1';
-    $port = (int)($_ENV['DB_PORT'] ?? 5432);
-    $dbname = $_ENV['DB_NAME'] ?? 'neondb';
-    $user = $_ENV['DB_USER'] ?? 'neondb_owner';
-    $pass = $_ENV['DB_PASS'] ?? '';
-
-    $isPgsql = ($_ENV['DB_DRIVER'] ?? '') === 'pgsql' || $port === 5432 || str_contains($host, 'neon');
-    $driver = $isPgsql ? 'pgsql' : ($_ENV['DB_DRIVER'] ?? 'mysql');
+    // Parse Render DATABASE_URL if present (postgres://user:pass@host:port/dbname)
+    $databaseUrl = $_ENV['DATABASE_URL'] ?? '';
+    if ($databaseUrl !== '') {
+        $parsed = parse_url($databaseUrl);
+        $host = $parsed['host'] ?? '127.0.0.1';
+        $port = (int)($parsed['port'] ?? 5432);
+        $dbname = ltrim($parsed['path'] ?? '', '/');
+        $user = $parsed['user'] ?? '';
+        $pass = $parsed['pass'] ?? '';
+        $driver = 'pgsql';
+    } else {
+        $host = $_ENV['DB_HOST'] ?? '127.0.0.1';
+        $port = (int)($_ENV['DB_PORT'] ?? 5432);
+        $dbname = $_ENV['DB_NAME'] ?? 'neondb';
+        $user = $_ENV['DB_USER'] ?? 'neondb_owner';
+        $pass = $_ENV['DB_PASS'] ?? '';
+        $driver = ($_ENV['DB_DRIVER'] ?? 'pgsql');
+    }
 
     if ($driver === 'pgsql') {
         $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode=require";

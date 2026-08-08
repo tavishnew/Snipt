@@ -11,17 +11,29 @@ if (file_exists($envPath)) {
   }
 }
 
-$host = $env['DB_HOST'] ?? '127.0.0.1';
-$port = (int)($env['DB_PORT'] ?? 5432);
-$dbname = $env['DB_NAME'] ?? 'neondb';
-$user = $env['DB_USER'] ?? 'neondb_owner';
-$pass = $env['DB_PASS'] ?? '';
-$driver = $env['DB_DRIVER'] ?? (stripos($host, 'neon') !== false || stripos($dbname, 'neon') !== false ? 'pgsql' : 'mysql');
-
-if ($driver === 'pgsql') {
-  $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode=require";
+// Parse Render DATABASE_URL if present (postgres://user:pass@host:port/dbname)
+$databaseUrl = $env['DATABASE_URL'] ?? '';
+if ($databaseUrl !== '') {
+    $parsed = parse_url($databaseUrl);
+    $host = $parsed['host'] ?? '127.0.0.1';
+    $port = (int)($parsed['port'] ?? 5432);
+    $dbname = ltrim($parsed['path'] ?? '', '/');
+    $user = $parsed['user'] ?? '';
+    $pass = $parsed['pass'] ?? '';
+    $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode=require";
 } else {
-  $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+    $host = $env['DB_HOST'] ?? '127.0.0.1';
+    $port = (int)($env['DB_PORT'] ?? 5432);
+    $dbname = $env['DB_NAME'] ?? 'neondb';
+    $user = $env['DB_USER'] ?? 'neondb_owner';
+    $pass = $env['DB_PASS'] ?? '';
+    $driver = $env['DB_DRIVER'] ?? (stripos($host, 'neon') !== false || stripos($dbname, 'neon') !== false ? 'pgsql' : 'mysql');
+
+    if ($driver === 'pgsql') {
+      $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode=require";
+    } else {
+      $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
+    }
 }
 
 try {
