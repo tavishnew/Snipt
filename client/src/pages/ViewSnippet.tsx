@@ -1,9 +1,10 @@
 /* ViewSnippet — Ink & Ochre
-   Renders snippet from API, with local fallback for immediate UX after creation
+   Renders snippet from API, with support for code paste & ZIP folder browsing/downloading
 */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
+import JSZip from "jszip";
 import {
   FileCode,
   Copy,
@@ -14,6 +15,9 @@ import {
   Check,
   ChevronLeft,
   Code2,
+  FolderArchive,
+  FileText,
+  Folder,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -33,25 +37,26 @@ import "prismjs/components/prism-json";
 import "prismjs/components/prism-markdown";
 
 const PRISM_LANG_MAP: Record<string, string> = {
-  "JavaScript": "javascript",
-  "TypeScript": "typescript",
-  "Python": "python",
-  "PHP": "php",
-  "Java": "java",
-  "Go": "go",
-  "Rust": "rust",
+  JavaScript: "javascript",
+  TypeScript: "typescript",
+  Python: "python",
+  PHP: "php",
+  Java: "java",
+  Go: "go",
+  Rust: "rust",
   "C++": "cpp",
-  "HTML": "markup",
-  "CSS": "css",
-  "JSON": "json",
-  "Markdown": "markdown",
-  "Text": "markup",
+  HTML: "markup",
+  CSS: "css",
+  JSON: "json",
+  Markdown: "markdown",
+  Text: "markup",
   "Auto Detect": "javascript",
 };
 
 const MOCK_SNIPPETS: Record<
   string,
   {
+    type?: "code" | "zip";
     title: string;
     language: string;
     code: string;
@@ -62,6 +67,7 @@ const MOCK_SNIPPETS: Record<
   }
 > = {
   DEMO001: {
+    type: "code",
     title: "React Hook Example",
     language: "JavaScript",
     code: `import { useState, useEffect } from "react";
@@ -96,19 +102,12 @@ export default useLocalStorage;`,
     expiresAt: "23h 58m",
     views: 3,
   },
-  PROTECT1: {
-    title: "Secret API Key",
-    language: "JavaScript",
-    code: "// This is a protected snippet",
-    password: "secret",
-    createdAt: "5 minutes ago",
-    expiresAt: "55m",
-    views: 0,
-  },
 };
 
 type Snippet = {
-  title: string;
+  type?: "code" | "zip";
+  filePath?: string | null;
+  title: string | null;
   language: string;
   code: string;
   password: string | null;
@@ -116,6 +115,12 @@ type Snippet = {
   expiresAt: string | null;
   views: number;
 };
+
+interface ZipEntry {
+  name: string;
+  dir: boolean;
+  content?: string;
+}
 
 export default function ViewSnippet() {
   const [location] = useLocation();
@@ -128,6 +133,11 @@ export default function ViewSnippet() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Zip file viewing state
+  const [zipEntries, setZipEntries] = useState<ZipEntry[]>([]);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [zipLoading, setZipLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,19 +156,25 @@ export default function ViewSnippet() {
         return;
       }
 
-      // 2. Try API
+      // 2. Fetch API
       try {
-        const res = await fetch(`${API_BASE}/api/snippets/${snippetId}`);
+        const res = await fetch(`/api/snippets/${snippetId}`);
         if (!res.ok) throw new Error("not_found");
         const data = (await res.json()) as Snippet;
-        if (!cancelled) setSnippet(data);
+        if (!cancelled) {
+          setSnippet(data);
+          if (data.type === "zip") {
+            loadZipContents(snippetId);
+          }
+        }
       } catch {
-        // 3. Try localStorage (freshly created, not yet in DB)
+        // 3. Fallback to localStorage (if just created locally)
         try {
           const raw = localStorage.getItem("snippet:" + snippetId);
           if (raw) {
             const parsed = JSON.parse(raw);
             setSnippet({
+              type: parsed.type || "code",
               title: parsed.title || "Untitled Snippet",
               language: parsed.language || "Text",
               code: parsed.code || "",
@@ -178,7 +194,7 @@ export default function ViewSnippet() {
       }
     };
 
-    const timer = setTimeout(load, 400);
+    const timer = setTimeout(load, 200);
 
     return () => {
       cancelled = true;
@@ -186,16 +202,98 @@ export default function ViewSnippet() {
     };
   }, [snippetId]);
 
+  const loadZipContents = async (id: string) => {
+    setZipLoading(true);
+    try {
+      const res = await fetch(`/api/snippets/${id}/download`);
+      if (!res.ok) return;
+      const buffer = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(buffer);
+
+      const entries: ZipEntry[] = [];
+      let firstTextFile: string | null = null;
+
+      for (const [relativePath, entry] of Object.entries(zip.files)) {
+        if (entry.dir) {
+          entries.push({ name: relativePath, dir: true });
+        } else {
+          let content = "";
+          try {
+            content = await entry.async("string");
+            if (!firstTextFile) firstTextFile = relativePath;
+          } catch {
+            content = "[Binary File]";
+          }
+          entries.push({ name: relativePath, dir: false, content });
+        }
+      }
+
+      setZipEntries(entries);
+      if (firstTextFile) setSelectedFile(firstTextFile);
+    } catch {
+      toast.error("Failed to load ZIP entries preview");
+    } finally {
+      setZipLoading(false);
+    }
+  };
+
+  const currentCode = useMemo(() => {
+    if (snippet?.type === "zip") {
+      if (!selectedFile) return "// Select a file from the ZIP tree to view content";
+      const file = zipEntries.find((e) => e.name === selectedFile);
+      return file?.content ?? "// File empty or unreadable";
+    }
+    return snippet?.code || "";
+  }, [snippet, zipEntries, selectedFile]);
+
   // Syntax highlighting
   const highlightedCode = useMemo(() => {
-    if (!snippet) return "";
-    const lang = PRISM_LANG_MAP[snippet.language] || "markup";
+    if (!currentCode) return "";
+    const langKey = selectedFile
+      ? extensionToLang(selectedFile)
+      : snippet?.language || "Auto Detect";
+    const lang = PRISM_LANG_MAP[langKey] || "markup";
     try {
       const grammar = Prism.languages[lang];
-      if (grammar) return Prism.highlight(snippet.code, grammar, lang);
+      if (grammar) return Prism.highlight(currentCode, grammar, lang);
     } catch {}
-    return escapeHtml(snippet.code);
-  }, [snippet]);
+    return escapeHtml(currentCode);
+  }, [currentCode, selectedFile, snippet]);
+
+  function extensionToLang(filename: string): string {
+    const ext = filename.split(".").pop()?.toLowerCase() || "";
+    switch (ext) {
+      case "js":
+      case "jsx":
+        return "JavaScript";
+      case "ts":
+      case "tsx":
+        return "TypeScript";
+      case "py":
+        return "Python";
+      case "php":
+        return "PHP";
+      case "java":
+        return "Java";
+      case "go":
+        return "Go";
+      case "rs":
+        return "Rust";
+      case "cpp":
+      case "c":
+        return "C++";
+      case "html":
+        return "HTML";
+      case "css":
+        return "CSS";
+      case "json":
+        return "JSON";
+      case "md":
+        return "Markdown";
+      default:
+        return "Text";
+    }
+  }
 
   function escapeHtml(str: string) {
     const div = document.createElement("div");
@@ -204,33 +302,41 @@ export default function ViewSnippet() {
   }
 
   const handleCopy = useCallback(async () => {
-    if (!snippet) return;
+    if (!currentCode) return;
     try {
-      await navigator.clipboard.writeText(snippet.code);
+      await navigator.clipboard.writeText(currentCode);
       setCopied(true);
       toast.success("Copied to clipboard", { duration: 2000 });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy");
     }
-  }, [snippet]);
+  }, [currentCode]);
 
   const handleDownload = useCallback(() => {
     if (!snippet) return;
+
+    if (snippet.type === "zip") {
+      // Trigger API zip file download endpoint
+      window.location.href = `/api/snippets/${snippetId}/download`;
+      toast.success("Downloading ZIP archive...");
+      return;
+    }
+
     const extMap: Record<string, string> = {
-      "JavaScript": "js",
-      "TypeScript": "ts",
-      "Python": "py",
-      "PHP": "php",
-      "Java": "java",
-      "Go": "go",
-      "Rust": "rs",
+      JavaScript: "js",
+      TypeScript: "ts",
+      Python: "py",
+      PHP: "php",
+      Java: "java",
+      Go: "go",
+      Rust: "rs",
       "C++": "cpp",
-      "HTML": "html",
-      "CSS": "css",
-      "JSON": "json",
-      "Markdown": "md",
-      "Text": "txt",
+      HTML: "html",
+      CSS: "css",
+      JSON: "json",
+      Markdown: "md",
+      Text: "txt",
       "Auto Detect": "txt",
     };
     const ext = extMap[snippet.language] || "txt";
@@ -243,7 +349,7 @@ export default function ViewSnippet() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Download started");
-  }, [snippet]);
+  }, [snippet, snippetId]);
 
   // ── loading ────────────────────────────────────────────────────────
   if (loading) {
@@ -251,10 +357,10 @@ export default function ViewSnippet() {
       <div className="relative min-h-[calc(100vh-4rem)] py-12">
         <div className="container max-w-4xl mx-auto">
           <div className="space-y-4">
-            <div className="h-8 w-48 bg-muted rounded-lg" />
-            <div className="h-4 w-64 bg-muted rounded" />
+            <div className="h-8 w-48 bg-muted rounded-lg animate-pulse" />
+            <div className="h-4 w-64 bg-muted rounded animate-pulse" />
             <div className="h-px bg-muted my-6" />
-            <div className="h-96 bg-muted rounded-xl border border-border" />
+            <div className="h-96 bg-muted rounded-xl border border-border animate-pulse" />
             <div className="flex gap-3">
               <div className="h-10 w-28 bg-muted rounded-lg" />
               <div className="h-10 w-28 bg-muted rounded-lg" />
@@ -299,13 +405,14 @@ export default function ViewSnippet() {
   if (!snippet) return null;
 
   const expiresAt = snippet.expiresAt ?? null;
-  const codeLines = snippet.code.split("\n");
+  const codeLines = currentCode.split("\n");
+  const isZip = snippet.type === "zip";
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] py-12">
       <div className="fixed inset-0 paper-grid pointer-events-none" />
 
-      <div className="container relative z-10 max-w-4xl mx-auto">
+      <div className="container relative z-10 max-w-5xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -316,13 +423,26 @@ export default function ViewSnippet() {
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <Code2 className="w-5 h-5 text-brand-700" />
-                {snippet.title || "Untitled Snippet"}
+                {isZip ? (
+                  <FolderArchive className="w-6 h-6 text-brand-700" />
+                ) : (
+                  <Code2 className="w-5 h-5 text-brand-700" />
+                )}
+                {snippet.title || (isZip ? "ZIP Archive Snippet" : "Untitled Snippet")}
               </h1>
               <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <FileCode className="w-3 h-3" />
-                  {snippet.language}
+                <span className="flex items-center gap-1 font-semibold text-foreground/80">
+                  {isZip ? (
+                    <>
+                      <FolderArchive className="w-3.5 h-3.5 text-brand-700" />
+                      ZIP Archive
+                    </>
+                  ) : (
+                    <>
+                      <FileCode className="w-3.5 h-3.5 text-brand-700" />
+                      {snippet.language}
+                    </>
+                  )}
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
@@ -338,35 +458,23 @@ export default function ViewSnippet() {
                   <Eye className="w-3 h-3" />
                   {snippet.views} view{snippet.views !== 1 ? "s" : ""}
                 </span>
-                {snippet.password !== null && (
-                  <span className="flex items-center gap-1 text-brand-700">
-                    <Eye className="w-3 h-3" />
-                    Password Protected
-                  </span>
-                )}
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Code Block */}
+        {/* Content Box (Single view for code, Split view for ZIP) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.4 }}
           className="surface rounded-lg overflow-hidden mb-6"
         >
-          {/* Title bar */}
+          {/* Top Control Bar */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-foreground font-mono">
-                {snippet.title || "snippet"}
-                .
-                {snippet.language === "JavaScript"
-                  ? "js"
-                  : snippet.language === "Python"
-                    ? "py"
-                    : "txt"}
+              <span className="text-xs text-foreground font-mono truncate max-w-xs">
+                {selectedFile || snippet.title || (isZip ? "archive.zip" : "snippet.txt")}
               </span>
             </div>
             <div className="flex items-center gap-1">
@@ -382,7 +490,7 @@ export default function ViewSnippet() {
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    Copy
+                    Copy Code
                   </>
                 )}
               </button>
@@ -390,28 +498,94 @@ export default function ViewSnippet() {
                 onClick={handleDownload}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200"
               >
-                <Download className="w-3.5 h-3.5" />
-                Download
+                <Download className="w-3.5 h-3.5 text-brand-700" />
+                {isZip ? "Download ZIP" : "Download"}
               </button>
             </div>
           </div>
 
-          {/* Code content */}
-          <div className="overflow-x-auto">
-            <pre className="p-5 text-sm leading-relaxed">
-              <div className="flex gap-6">
-                <div className="text-muted-foreground select-none text-right font-mono text-sm shrink-0">
-                  {codeLines.map((_, i) => (
-                    <div key={i} className="leading-[1.7]">{i + 1}</div>
-                  ))}
+          {/* Body Section */}
+          {isZip ? (
+            <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border min-h-[400px]">
+              {/* File Tree Explorer Sidebar */}
+              <div className="p-3 bg-muted/30 md:col-span-1 overflow-y-auto max-h-[500px]">
+                <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-3 pb-2 border-b border-border">
+                  <FolderArchive className="w-4 h-4 text-brand-700" />
+                  <span>ZIP File Tree ({zipEntries.length} items)</span>
                 </div>
-                <code
-                  className="font-mono text-sm leading-[1.7]"
-                  dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                />
+                {zipLoading ? (
+                  <p className="text-xs text-muted-foreground animate-pulse p-2">
+                    Unzipping preview...
+                  </p>
+                ) : zipEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-2">No files found.</p>
+                ) : (
+                  <div className="space-y-0.5 font-mono text-xs">
+                    {zipEntries.map((e) => (
+                      <button
+                        key={e.name}
+                        onClick={() => !e.dir && setSelectedFile(e.name)}
+                        disabled={e.dir}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-left transition-colors ${
+                          selectedFile === e.name
+                            ? "bg-brand-600/15 text-brand-700 font-medium"
+                            : e.dir
+                              ? "text-muted-foreground cursor-default"
+                              : "hover:bg-muted text-foreground cursor-pointer"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          {e.dir ? (
+                            <Folder className="w-3.5 h-3.5 text-brand-600 shrink-0" />
+                          ) : (
+                            <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          )}
+                          <span className="truncate">{e.name}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </pre>
-          </div>
+
+              {/* Code viewer for selected file */}
+              <div className="md:col-span-2 overflow-x-auto bg-card">
+                <pre className="p-5 text-sm leading-relaxed">
+                  <div className="flex gap-6">
+                    <div className="text-muted-foreground select-none text-right font-mono text-sm shrink-0">
+                      {codeLines.map((_, i) => (
+                        <div key={i} className="leading-[1.7]">
+                          {i + 1}
+                        </div>
+                      ))}
+                    </div>
+                    <code
+                      className="font-mono text-sm leading-[1.7]"
+                      dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                    />
+                  </div>
+                </pre>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto bg-card">
+              <pre className="p-5 text-sm leading-relaxed">
+                <div className="flex gap-6">
+                  <div className="text-muted-foreground select-none text-right font-mono text-sm shrink-0">
+                    {codeLines.map((_, i) => (
+                      <div key={i} className="leading-[1.7]">
+                        {i + 1}
+                      </div>
+                    ))}
+                  </div>
+                  <code
+                    className="font-mono text-sm leading-[1.7]"
+                    dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                  />
+                </div>
+              </pre>
+            </div>
+          )}
         </motion.div>
 
         {/* Action buttons */}
@@ -446,7 +620,7 @@ export default function ViewSnippet() {
             className="bg-card text-foreground border border-border hover:bg-muted hover:border-brand-300"
           >
             <Download className="w-4 h-4 mr-2" />
-            Download
+            {isZip ? "Download ZIP Archive" : "Download"}
           </Button>
         </motion.div>
       </div>

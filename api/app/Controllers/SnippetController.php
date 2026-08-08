@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Config\db;
+use function App\Config\db;
 use App\Models\Snippet;
 use App\Services\Expiration;
 use App\Services\IdGenerator;
@@ -44,6 +44,9 @@ class SnippetController
         ]);
     }
 
+    private const MAX_ZIP_BYTES = 10_485_760; // 10MB
+    private const FORBIDDEN_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'com', 'scr', 'msi', 'dll', 'so', 'dylib', 'vbs', 'ps1', 'jar', 'apk', 'app'];
+
     public static function create(): void
     {
         $limiter = new RateLimiter(self::ipHash(), 'create');
@@ -54,14 +57,48 @@ class SnippetController
             return;
         }
 
-        $payload = self::readJson();
+        $isMultipart = (isset($_FILES['zip']) || str_contains($_SERVER['CONTENT_TYPE'] ?? '', 'multipart/form-data'));
+        $payload = $isMultipart ? $_POST : self::readJson();
         $fields = [];
 
-        $code = $payload['code'] ?? null;
-        if ($code === null || !is_string($code) || trim($code) === '') {
-            $fields['code'] = 'Code is required';
-        } elseif (strlen($code) > self::MAX_CODE_BYTES) {
-            $fields['code'] = 'Code exceeds 500KB limit';
+        $type = 'code';
+        $filePath = null;
+        $code = '';
+
+        if ($isMultipart || isset($_FILES['zip'])) {
+            $type = 'zip';
+            if (!isset($_FILES['zip']) || $_FILES['zip']['error'] !== UPLOAD_ERR_OK) {
+                $fields['zip'] = 'Valid ZIP file is required';
+            } else {
+                $zipFile = $_FILES['zip'];
+                if ($zipFile['size'] > self::MAX_ZIP_BYTES) {
+                    $fields['zip'] = 'ZIP file exceeds 10MB limit';
+                } else {
+                    $zip = new \ZipArchive();
+                    $res = $zip->open($zipFile['tmp_name']);
+                    if ($res !== true) {
+                        $fields['zip'] = 'Invalid or corrupted ZIP archive';
+                    } else {
+                        for ($i = 0; $i < $zip->numFiles; $i++) {
+                            $filename = $zip->getNameIndex($i);
+                            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                            if (in_array($ext, self::FORBIDDEN_EXTENSIONS, true)) {
+                                $fields['zip'] = 'ZIP archive contains executable file: ' . basename($filename);
+                                break;
+                            }
+                        }
+                        $zip->close();
+                    }
+                }
+            }
+            $code = '[ZIP Archive]';
+        } else {
+            $code = $payload['code'] ?? null;
+            if ($code === null || !is_string($code) || trim($code) === '') {
+                $fields['code'] = 'Code is required';
+            } elseif (strlen($code) > self::MAX_CODE_BYTES) {
+                $fields['code'] = 'Code exceeds 500KB limit';
+            }
         }
 
         $title = $payload['title'] ?? null;
@@ -109,9 +146,23 @@ class SnippetController
         $publicId = IdGenerator::generatePublicId();
         $ipHash = self::ipHash();
 
-        Snippet::create($uuid, $publicId, $title, $language, $code, $passwordHash, $expiresAt, $ipHash);
+        if ($type === 'zip' && isset($_FILES['zip'])) {
+            $storageDir = __DIR__ . '/../../storage/snippets';
+            if (!is_dir($storageDir)) {
+                mkdir($storageDir, 0755, true);
+            }
+            $targetPath = $storageDir . '/' . $publicId . '.zip';
+            if (!move_uploaded_file($_FILES['zip']['tmp_name'], $targetPath)) {
+                self::respondJson(500, ['error' => ['code' => 'STORAGE_ERROR', 'message' => 'Failed to save ZIP file']]);
+                return;
+            }
+            $filePath = 'storage/snippets/' . $publicId . '.zip';
+        }
 
-        $link = ($_ENV['APP_URL'] ?? 'http://localhost:8000') . '/s/' . $publicId;
+        Snippet::create($uuid, $publicId, $title, $language, $code, $passwordHash, $expiresAt, $ipHash, $type, $filePath);
+
+        $frontendUrl = $_ENV['FRONTEND_URL'] ?? $_ENV['APP_URL'] ?? ($_SERVER['HTTP_ORIGIN'] ?? 'http://localhost:3000');
+        $link = rtrim($frontendUrl, '/') . '/s/' . $publicId;
 
         self::respondJson(201, [
             'publicId' => $publicId,
@@ -155,14 +206,7 @@ class SnippetController
 
         Snippet::incrementViews((int)$snippet['id']);
 
-        self::respondJson(200, [
-            'title' => $snippet['title'],
-            'language' => $snippet['language'],
-            'code' => $snippet['code'],
-            'createdAt' => $snippet['created_at'],
-            'expiresAt' => $snippet['expires_at'],
-            'views' => (int)$snippet['views'] + 1,
-        ]);
+        self::respondJson(200, self::snippetPayload($snippet));
     }
 
     public static function unlock(string $publicId): void
@@ -192,7 +236,6 @@ class SnippetController
         }
 
         if ($snippet['password_hash'] === null) {
-            // No password required — return code directly
             self::respondJson(200, self::snippetPayload($snippet));
             return;
         }
@@ -260,9 +303,22 @@ class SnippetController
             }
         }
 
-        $ext = self::extensionFor((string)$snippet['language']);
         $title = $snippet['title'] ?: 'snippet';
         $safeTitle = preg_replace('/[^a-zA-Z0-9_-]/', '_', $title) ?: 'snippet';
+
+        if (($snippet['type'] ?? 'code') === 'zip' && !empty($snippet['file_path'])) {
+            $fullPath = __DIR__ . '/../../' . $snippet['file_path'];
+            if (file_exists($fullPath)) {
+                header('Content-Type: application/zip');
+                header('Content-Disposition: attachment; filename="' . $safeTitle . '.zip"');
+                header('Content-Length: ' . filesize($fullPath));
+                header('X-Content-Type-Options: nosniff');
+                readfile($fullPath);
+                exit;
+            }
+        }
+
+        $ext = self::extensionFor((string)$snippet['language']);
         $filename = $safeTitle . '.' . $ext;
 
         header('Content-Type: text/plain; charset=utf-8');
@@ -345,6 +401,8 @@ class SnippetController
     private static function snippetPayload(array $snippet): array
     {
         return [
+            'type' => $snippet['type'] ?? 'code',
+            'filePath' => $snippet['file_path'] ?? null,
             'title' => $snippet['title'],
             'language' => $snippet['language'],
             'code' => $snippet['code'],

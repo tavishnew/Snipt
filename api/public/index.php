@@ -9,7 +9,7 @@ if (file_exists($autoload)) {
     require $autoload;
 }
 
-// Load .env if present (no framework, no dotenv lib — kept to 3 lines)
+// Load .env if present
 $envFile = __DIR__ . '/../.env';
 if (file_exists($envFile)) {
     $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -26,47 +26,14 @@ if (file_exists($envFile)) {
     }
 }
 
-use App\Config\apply_cors;
-use App\Config\apply_security_headers;
-use App\Config\db;
-use App\Controllers\SnippetController;
-use App\Middleware\JsonBodyParser;
-use App\Middleware\RateLimitMiddleware;
+// Require config files containing procedural helper functions
+require_once __DIR__ . '/../config/cors.php';
+require_once __DIR__ . '/../config/security_headers.php';
+require_once __DIR__ . '/../config/database.php';
 
-apply_cors();
-apply_security_headers();
+\App\Config\apply_cors();
+\App\Config\apply_security_headers();
 
-// ── JSON sink (reads php://input once, stores in request attr) ──────────────
+// ── Load & Dispatch API Routes ──────────────────────────────────────────────
 
-$bodyRaw = file_get_contents('php://input');
-$requestBody = [];
-if ($bodyRaw !== false && $bodyRaw !== '') {
-    $decoded = json_decode($bodyRaw, true);
-    if (is_array($decoded)) {
-        $requestBody = $decoded;
-    }
-}
-
-// Lazy DB — fails closed (returns 500) if not reachable, so routing doesn't crash
-$pdo = null;
-try {
-    $pdo = db();
-} catch (\Throwable $e) {
-    // db() already emitted a 500 response
-    exit;
-}
-
-// ── Routing (manual, no framework) ─────────────────────────────────────────
-
-$method = $_SERVER['REQUEST_METHOD'];
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-
-// Strip API prefix
-$path = preg_replace('#^/api#', '', $uri) ?: '/';
-$segments = array_values(array_filter(explode('/', $path)));
-
-// Default response for unknown routes
-http_response_code(404);
-header('Content-Type: application/json');
-echo json_encode(['error' => ['code' => 'NOT_FOUND', 'message' => 'Endpoint not found']], JSON_UNESCAPED_UNICODE);
-exit;
+require_once __DIR__ . '/../routes/api.php';

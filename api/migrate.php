@@ -19,7 +19,7 @@ $pass = $env['DB_PASS'] ?? '';
 $driver = $env['DB_DRIVER'] ?? (stripos($host, 'neon') !== false || stripos($dbname, 'neon') !== false ? 'pgsql' : 'mysql');
 
 if ($driver === 'pgsql') {
-  $dsn = "pgsql:host={$host};port={$port};dbname={$dbname}";
+  $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode=require";
 } else {
   $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
 }
@@ -38,6 +38,7 @@ try {
 $migrations = [
   __DIR__ . '/database/migrations/001_create_snippets_table.sql',
   __DIR__ . '/database/migrations/002_create_rate_limits_table.sql',
+  __DIR__ . '/database/migrations/003_add_zip_support_to_snippets.sql',
 ];
 
 foreach ($migrations as $path) {

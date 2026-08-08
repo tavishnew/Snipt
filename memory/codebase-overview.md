@@ -78,14 +78,14 @@ Snipt/
 - **Unique**: streamdown (markdown renderer), nanoid (ID gen), next-themes (not used currently), valva (drawer), embla (carousel), recharts (available but unused)
 - **Dev**: Vite 7, esbuild, pnpm, vitest, playwright-ready
 
-## Data Flow (Current)
+## Data Flow
 
-All data is MOCK. No real backend calls yet.
+Data flow uses real API endpoints `/api/snippets` connected to the PHP backend (`api/`) backed by PostgreSQL/MySQL. Express (`server/index.ts`) and Vite dev server reverse-proxy `/api/*` calls.
 
-1. **CreateSnippet.tsx** → validates → simulates 800ms delay → redirects to `/s/{ID}/success?link=...`
+1. **CreateSnippet.tsx** → validates with `react-hook-form` + `zod` → sends JSON (code paste mode) or `multipart/form-data` (zip upload mode with `JSZip` client-side preview) to `POST /api/snippets` → redirects to `/s/{ID}/success?link=...`
 2. **SuccessScreen.tsx** → parses ID + link from URL → shows copy actions
-3. **ViewSnippet.tsx** → reads `:id` from route → looks up MOCK_SNIPPETS map → Prism highlights → copy/download buttons
-4. **PasswordLock.tsx** → validates mock password ("secret") → would navigate to /s/:id with auth token in prod
+3. **ViewSnippet.tsx** → reads `:id` from route → fetches `/api/snippets/:id` → if code type: Prism highlights; if zip type: JSZip unzips archive & renders file tree view with code viewer → copy/download actions (streams ZIP or text file from `/api/snippets/:id/download`)
+4. **PasswordLock.tsx** → validates password against `/api/snippets/:id/unlock` → acquires JWT token for viewing protected snippets
 5. **App.tsx** → wouter <Switch> handles all routes including fallback 404
 
 ## Design System
@@ -99,23 +99,16 @@ All data is MOCK. No real backend calls yet.
 
 ## Key Patterns
 
-1. **Page animation**: Every page uses same pattern — `<div className="fixed inset-0 paper-grid">` bg, `<div className="container relative z-10">` content wrapper, motion.div sequences per field
-2. **Form validation**: Hand-rolled in CreateSnippet (no react-hook-form despite having it as dep)
+1. **Page animation**: Every page uses standard motion pattern — `<div className="fixed inset-0 paper-grid">` bg, `<div className="container relative z-10">` content wrapper, motion.div sequences per field
+2. **Form validation**: `react-hook-form` + `@hookform/resolvers/zod` + `zod` in `CreateSnippet.tsx`
 3. **Route params**: wouter `useLocation()` + regex match or `useParams` for `:id`
-4. **Cookie constants**: COOKIE_NAME, ONE_YEAR_MS exported from shared but unused in client yet
-5. **getLoginUrl()**: Legacy OAuth stub in const.ts — references VITE_OAUTH_PORTAL_URL env vars, points to `/api/oauth/callback` endpoint that doesn't exist yet
-6. **I18N ready**: Hidden English-variant locales in index.html comment block
-7. **Prism setup**: Manually imports each language component; PRISM_LANG_MAP maps human names → prism keys
+4. **Prism setup**: Manually imports each language component; PRISM_LANG_MAP maps human names → prism keys
+5. **ZIP Snippets**: JSZip for client-side archive preview/unzipping in frontend, PHP `ZipArchive` validation (max 10MB, executable restriction) and file storage on disk (`storage/snippets/`) in backend
 
 ## What's Missing / Future
 
-- No real backend: Express serves only static files. MOCK_SNIPPETS in ViewSnippet instead of API calls.
-- No persistence layer: No DB, no file storage. Snippets can't actually be saved or retrieved.
-- No auth: getLoginUrl() stub, no real OAuth flow.
-- No rate limiting despite being mentioned in copy.
-- Cleanup cron/background job for expired snippets not implemented.
-- CreateSnippet form uses manual state instead of react-hook-form (dep already installed).
-- TypeScript strict with noUnusedLocals/Parameters — const.ts and shared/const.ts will have unused export warnings.
+- Cleanup cron/background job for expired snippets from disk storage and DB.
+- OAuth user authentication integration if persistent user dashboards are desired.
 
 ## Route Map
 

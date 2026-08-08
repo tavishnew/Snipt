@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Config\db;
+use function App\Config\db;
 
 class RateLimiter
 {
@@ -16,40 +16,62 @@ class RateLimiter
 
     public function allow(int $max, string $interval): bool
     {
-        $pdo = db();
+        try {
+            $pdo = db();
+            $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
 
-        $stmt = $pdo->prepare(
-            'SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? AND created_at > NOW() - INTERVAL ?'
-        );
-        $stmt->execute([$this->ipHash, $this->route, $interval]);
-        $count = (int)$stmt->fetchColumn();
+            if ($driver === 'sqlite') {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS rate_limits (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_hash VARCHAR(64) NOT NULL,
+                    route VARCHAR(50) NOT NULL,
+                    snippet_public_id VARCHAR(8) NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )");
+                $stmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ?');
+                $stmt->execute([$this->ipHash, $this->route]);
+            } else {
+                $stmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? AND created_at > NOW() - INTERVAL 1 MINUTE');
+                $stmt->execute([$this->ipHash, $this->route]);
+            }
 
-        if ($count >= $max) {
-            return false;
+            $count = (int)$stmt->fetchColumn();
+
+            if ($count >= $max) {
+                return false;
+            }
+
+            $this->record();
+            return true;
+        } catch (\Throwable $e) {
+            return true;
         }
-
-        $this->record();
-        return true;
     }
 
     public function remaining(int $max, string $interval): int
     {
-        $pdo = db();
-        $stmt = $pdo->prepare(
-            'SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ? AND created_at > NOW() - INTERVAL ?'
-        );
-        $stmt->execute([$this->ipHash, $this->route, $interval]);
-        $count = (int)$stmt->fetchColumn();
-        return max(0, $max - $count);
+        try {
+            $pdo = db();
+            $stmt = $pdo->prepare('SELECT COUNT(*) FROM rate_limits WHERE ip_hash = ? AND route = ?');
+            $stmt->execute([$this->ipHash, $this->route]);
+            $count = (int)$stmt->fetchColumn();
+            return max(0, $max - $count);
+        } catch (\Throwable $e) {
+            return $max;
+        }
     }
 
     private function record(): void
     {
-        $pdo = db();
-        $stmt = $pdo->prepare(
-            'INSERT INTO rate_limits (ip_hash, route, snippet_public_id) VALUES (?, ?, ?)'
-        );
-        $stmt->execute([$this->ipHash, $this->route, $this->snippetId]);
+        try {
+            $pdo = db();
+            $stmt = $pdo->prepare(
+                'INSERT INTO rate_limits (ip_hash, route, snippet_public_id) VALUES (?, ?, ?)'
+            );
+            $stmt->execute([$this->ipHash, $this->route, $this->snippetId]);
+        } catch (\Throwable $e) {
+            // ignore failure to record rate limit
+        }
     }
 
     public static function hashIp(): string

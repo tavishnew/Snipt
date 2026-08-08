@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Config\db;
+use function App\Config\db;
 
 class Snippet
 {
@@ -17,10 +17,12 @@ class Snippet
         ?string $passwordHash,
         ?string $expiresAt,
         string $ipHash,
+        string $type = 'code',
+        ?string $filePath = null
     ): int {
         $stmt = db()->prepare(
-            'INSERT INTO snippets (uuid, public_id, title, language, code, password_hash, expires_at, ip_hash)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO snippets (uuid, public_id, title, language, code, password_hash, expires_at, ip_hash, type, file_path)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $uuid,
@@ -31,6 +33,8 @@ class Snippet
             $passwordHash,
             $expiresAt,
             $ipHash,
+            $type,
+            $filePath,
         ]);
 
         return (int)db()->lastInsertId();
