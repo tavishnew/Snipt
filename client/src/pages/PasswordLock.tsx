@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { API_BASE } from "@/lib/api";
 
 export default function PasswordLock() {
   const [, setLocation] = useLocation();
@@ -42,7 +43,7 @@ export default function PasswordLock() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/snippets/${snippetId}/unlock`, {
+      const res = await fetch(`${API_BASE}/api/snippets/${snippetId}/unlock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),

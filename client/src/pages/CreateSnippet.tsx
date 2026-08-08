@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { API_BASE } from "@/lib/api";
 
 const LANGUAGES = [
   "Auto Detect",
@@ -210,12 +211,12 @@ export default function CreateSnippet() {
         formData.append("expiration", values.expiration);
         if (values.password) formData.append("password", values.password);
 
-        res = await fetch("/api/snippets", {
+        res = await fetch(`${API_BASE}/api/snippets`, {
           method: "POST",
           body: formData,
         });
       } else {
-        res = await fetch("/api/snippets", {
+        res = await fetch(`${API_BASE}/api/snippets`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

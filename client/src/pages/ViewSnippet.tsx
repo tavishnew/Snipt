@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import "@/prism-theme.css";
+import { API_BASE } from "@/lib/api";
 import Prism from "prismjs";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-typescript";
@@ -169,7 +170,7 @@ export default function ViewSnippet() {
         const headers: Record<string, string> = {};
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        const res = await fetch(`/api/snippets/${snippetId}`, { headers });
+        const res = await fetch(`${API_BASE}/api/snippets/${snippetId}`, { headers });
         if (!res.ok) throw new Error("not_found");
         const data = (await res.json()) as Snippet;
         if (!cancelled) {
@@ -220,7 +221,7 @@ export default function ViewSnippet() {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/snippets/${id}/download`, { headers });
+      const res = await fetch(`${API_BASE}/api/snippets/${id}/download`, { headers });
       if (!res.ok) return;
       const buffer = await res.arrayBuffer();
       const zip = await JSZip.loadAsync(buffer);
@@ -333,7 +334,7 @@ export default function ViewSnippet() {
 
     if (snippet.type === "zip") {
       // Trigger API zip file download endpoint
-      window.location.href = `/api/snippets/${snippetId}/download`;
+      window.location.href = `${API_BASE}/api/snippets/${snippetId}/download`;
       toast.success("Downloading ZIP archive...");
       return;
     }
