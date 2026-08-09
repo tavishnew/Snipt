@@ -1,6 +1,14 @@
 {
   "buildCommand": "vite build",
   "outputDirectory": "dist/public",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Permissions-Policy", "value": "unload=(self)" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
