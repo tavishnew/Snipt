@@ -44,11 +44,23 @@ class SnippetController
         ]);
     }
 
+    private static function zipError(string $message = 'Server does not support zip uploads'): void
+    {
+        self::respondJson(500, [
+            'error' => ['code' => 'ZIP_UNSUPPORTED', 'message' => $message],
+        ]);
+    }
+
     private const MAX_ZIP_BYTES = 10_485_760; // 10MB
     private const FORBIDDEN_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'com', 'scr', 'msi', 'dll', 'so', 'dylib', 'vbs', 'ps1', 'jar', 'apk', 'app'];
 
     public static function create(): void
     {
+        if (!class_exists('ZipArchive')) {
+            self::zipError();
+            return;
+        }
+
         $limiter = new RateLimiter(self::ipHash(), 'create');
         if (!$limiter->allow(10, '1 MINUTE')) {
             self::respondJson(429, [

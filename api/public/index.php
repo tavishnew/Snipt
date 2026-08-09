@@ -34,6 +34,29 @@ require_once __DIR__ . '/../config/database.php';
 \App\Config\apply_cors();
 \App\Config\apply_security_headers();
 
+// ── Fatal/exception funnel: surface as 500 JSON ─────────────────────────────
+
+set_exception_handler(function (\Throwable $e): void {
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+    }
+    error_log('[snipt] uncaught: ' . $e::class . ': ' . $e->getMessage());
+    echo json_encode(['error' => ['code' => 'INTERNAL_ERROR', 'message' => 'Internal server error']], JSON_UNESCAPED_UNICODE);
+});
+
+register_shutdown_function(function (): void {
+    $err = error_get_last();
+    if ($err !== null && in_array($err['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_PARSE], true)) {
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Content-Type: application/json');
+        }
+        error_log('[snipt] fatal: ' . $err['message']);
+        echo json_encode(['error' => ['code' => 'INTERNAL_ERROR', 'message' => 'Internal server error']], JSON_UNESCAPED_UNICODE);
+    }
+});
+
 // ── Load & Dispatch API Routes ──────────────────────────────────────────────
 
 require_once __DIR__ . '/../routes/api.php';
